@@ -1,27 +1,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedRoutes = [
-  "/dashboard",
-  "/project",
-  "/profile",
-];
-
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  const isProtectedRoute = protectedRoutes.some(
-    (route) =>
-      pathname === route ||
-      pathname.startsWith(`${route}/`)
-  );
-
   const token = request.cookies.get("auth_token")?.value;
 
-  if (isProtectedRoute && !token) {
+  if (!token) {
     const loginUrl = new URL("/login", request.url);
-
-    loginUrl.searchParams.set("from", pathname);
+    loginUrl.searchParams.set(
+      "from",
+      request.nextUrl.pathname
+    );
 
     return NextResponse.redirect(loginUrl);
   }

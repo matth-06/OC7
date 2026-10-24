@@ -4,35 +4,35 @@ import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const body = await request.json();
 
     const response = await fetch(
-      `${process.env.BACKEND_URL}/login`,
+      `${process.env.BACKEND_URL}/auth/login`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
         cache: "no-store",
       }
     );
 
+    const data = await response.json();
+
     if (!response.ok) {
       return NextResponse.json(
-        { message: "Identifiants invalides ou accès refusé." },
-        { status: 401 }
+        { message: data.message ?? "Connexion refusée." },
+        { status: response.status }
       );
     }
 
-    const data = await response.json();
-
-    // À adapter au format réel de ton backend.
-    const token = data.token;
+    // À adapter à la réponse réelle de ton API.
+    const token = String(data.token);
 
     if (typeof token !== "string" || !token) {
       return NextResponse.json(
-        { message: "Réponse du backend invalide." },
+        { message: "Token absent de la réponse du backend." },
         { status: 502 }
       );
     }
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(
-      { message: "Impossible de contacter le serveur." },
+      { message: "Impossible de contacter le backend." },
       { status: 500 }
     );
   }
