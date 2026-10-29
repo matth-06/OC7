@@ -1,49 +1,53 @@
 
-import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { LayoutDashboard, FolderOpen } from "lucide-react";
+import { AppNavigation } from "./AppNavigation";
 import "./layoutApp.css";
 
-export const metadata: Metadata = {
-  title: "My Application",
-  description: "Mon application Next.js",
-};
-
-export default function RootLayout({
+export default function AppLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: ReactNode;
+}) {
   return (
-    <html lang="fr">
-      <body>
-        <header className="header">
-          <div className="header-content">
-            <h2 className="logo">MyApp</h2>
+    <div className="app-layout">
+      {/* Header */}
+      <header className="app-header">
+        <Link href="/" className="header-logo">
+          <Image
+            src="/images/logo.svg"
+            alt="Abricot"
+            width={90}
+            height={30}
+            priority
+          />
+        </Link>
 
-            <nav className="navigation">
-              <Link href="/" className="nav-button">
-                Dashboard
-              </Link>
+        <AppNavigation />
 
-              <Link href="/project" className="nav-button">
-                Project
-              </Link>
+        <Link href="/profile" className="header-avatar">
+          AD
+        </Link>
+      </header>
 
-              <Link href="/profile" className="nav-button">
-                Profile
-              </Link>
-            </nav>
-          </div>
-        </header>
+      {/* Contenu des pages */}
+      <main className="app-content">{children}</main>
 
-        <main className="main-content">
-          {children}
-        </main>
+      {/* Footer */}
+      <footer className="app-footer">
+        <div className="footer-logo">
+          <Image
+            src="/images/logoB.svg"
+            alt="Abricot"
+            width={60}
+            height={20}
+          />
+        </div>
 
-        <footer className="footer">
-          <p>© 2026 MyApp — Tous droits réservés.</p>
-        </footer>
-      </body>
-    </html>
+        <p className="footer-copyright">Abricot 2025</p>
+      </footer>
+    </div>
   );
 }
