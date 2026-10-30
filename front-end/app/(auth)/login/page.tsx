@@ -38,7 +38,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace("/");
+      router.replace("/dashboard");
       router.refresh();
     } catch {
       setError("Erreur de connexion au serveur.");
@@ -50,7 +50,7 @@ export default function LoginPage() {
   return (
     <main className="login-page">
     <section className="login-panel">
-      <Link href="/" aria-label="Accueil">
+      <Link href="/dashboard" aria-label="Accueil">
         <Image
           src="/images/logo.svg"
           alt="Abricot"

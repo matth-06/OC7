@@ -11,8 +11,8 @@ export function AppNavigation() {
   return (
     <nav className="header-nav">
       <Link
-        href="/"
-        className={pathname === "/" ? "active" : ""}
+        href="/dashboard"
+        className={pathname === "/dashboard" ? "active" : ""}
       >
         <LayoutDashboard className="nav-icon" />
         Tableau de bord

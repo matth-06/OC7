@@ -27,10 +27,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // À adapter à la réponse réelle de ton API.
-    const token = String(data.token);
+    const token = data.data?.token;
 
-    if (typeof token !== "string" || !token) {
+    if (typeof token !== "string" || token.length === 0) {
       return NextResponse.json(
         { message: "Token absent de la réponse du backend." },
         { status: 502 }

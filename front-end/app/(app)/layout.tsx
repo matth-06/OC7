@@ -15,7 +15,7 @@ export default function AppLayout({
     <div className="app-layout">
       {/* Header */}
       <header className="app-header">
-        <Link href="/" className="header-logo">
+        <Link href="/dashboard" className="header-logo">
           <Image
             src="/images/logo.svg"
             alt="Abricot"
