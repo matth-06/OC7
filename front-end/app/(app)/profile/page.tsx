@@ -145,7 +145,6 @@ function ProfileForm({ user }: { user: ApiUser }) {
             onChange={(e) => setPassword(e.target.value)}
           />
           <p id="profile-password-hint" className="profile-hint">
-            Laissez vide pour conserver votre mot de passe actuel.
           </p>
         </div>
 

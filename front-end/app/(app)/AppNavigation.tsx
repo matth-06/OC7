@@ -30,6 +30,17 @@ function NavigationLinks() {
   );
 }
 
+function Avatar(){
+  const pathname = usePathname();
+  return (
+    <nav className="header-avatar">
+      <Link href="/profile" className={pathname === "/profile" ? "active" : ""}>
+        <span className="avatar-text">AD</span>
+      </Link>
+    </nav>
+  );
+}
+
 export function AppNavigation() {
   return (
     <Suspense

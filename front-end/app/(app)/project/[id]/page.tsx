@@ -239,7 +239,6 @@ function ProjectDetailContent() {
           </div>
         </header>
 
-        {/* Contributeurs
         <section className="pj-contributors" aria-label="Contributeurs">
           <p className="pj-contributors-title">
             <strong>Contributeurs</strong>
@@ -252,7 +251,7 @@ function ProjectDetailContent() {
               <UserChip key={m.user.id} user={m.user} owner={m.isOwner} />
             ))}
           </div>
-        </section> */}
+        </section>
 
         {/* Tâches */}
         <section className="pj-panel">
