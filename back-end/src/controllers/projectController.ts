@@ -290,6 +290,11 @@ export const getProjects = async (
             },
           },
         },
+        tasks: {
+          select: {
+            status: true,
+          },
+        },
         _count: {
           select: {
             tasks: true,
@@ -375,6 +380,31 @@ export const getProject = async (
                 name: true,
               },
             },
+            assignees: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            comments: {
+              include: {
+                author: {
+                  select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                  },
+                },
+              },
+              orderBy: {
+                createdAt: "asc",
+              },
+            },
           },
           orderBy: {
             createdAt: "desc",
@@ -395,9 +425,13 @@ export const getProject = async (
 
     // Ajouter le rôle de l'utilisateur
     const role = await getUserProjectRole(authReq.user.id, id);
+    const tasks = project.tasks.map((task) => ({
+      ...task,
+      assignees: task.assignees.map((assignee) => assignee.user),
+    }));
 
     sendSuccess(res, "Projet récupéré avec succès", {
-      project: { ...project, userRole: role },
+      project: { ...project, tasks, userRole: role },
     });
   } catch (error) {
     console.error("Erreur lors de la récupération du projet:", error);

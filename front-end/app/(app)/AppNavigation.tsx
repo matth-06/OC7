@@ -3,9 +3,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 import { LayoutDashboard, FolderOpen } from "lucide-react";
 
-export function AppNavigation() {
+function NavigationLinks() {
   const pathname = usePathname();
 
   return (
@@ -26,5 +27,26 @@ export function AppNavigation() {
         Projets
       </Link>
     </nav>
+  );
+}
+
+export function AppNavigation() {
+  return (
+    <Suspense
+      fallback={
+        <nav className="header-nav">
+          <Link href="/dashboard">
+            <LayoutDashboard className="nav-icon" />
+            Tableau de bord
+          </Link>
+          <Link href="/project">
+            <FolderOpen className="nav-icon" />
+            Projets
+          </Link>
+        </nav>
+      }
+    >
+      <NavigationLinks />
+    </Suspense>
   );
 }

@@ -3,7 +3,7 @@
 }
 
 .dashboard-container {
-  max-width: 730px;
+  max-width: 1215px;
   margin: 0 auto;
 }
 
@@ -313,10 +313,6 @@
 
 /* Styles de la vue Kanban — à importer APRÈS dashboard.css */
 
-/* Conteneur plus large en Kanban, en-tête et onglets légèrement en retrait */
-.dashboard-container.dashboard-container-kanban {
-  max-width: 1000px;
-}
 
 .dashboard-container-kanban .dashboard-header,
 .dashboard-container-kanban .dashboard-tabs {
