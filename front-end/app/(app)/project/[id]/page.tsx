@@ -14,12 +14,12 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { useApi } from "../use-api";
+import { useApi } from "../../../hooks/use-api";
 import { Avatar, StatusBadge, UserChip } from "../ui";
 import {
   fullName,
   formatDate,
-  sortMembers,
+  buildTeam,
   STATUS_LABELS,
   type ApiMember,
   type ApiUser,
@@ -41,7 +41,8 @@ type ApiProjectDetail = {
   id: string;
   name: string;
   description: string | null;
-  members: ApiMember[];
+  owner: ApiUser;
+  members: ApiMember[]; // hors propriétaire
   tasks: ApiTask[];
 };
 
@@ -209,7 +210,7 @@ function ProjectDetailContent() {
     );
   }
 
-  const members = sortMembers(project.members);
+  const team = buildTeam(project.owner, project.members);
 
   return (
     <main className="pj-page">
@@ -243,12 +244,12 @@ function ProjectDetailContent() {
           <p className="pj-contributors-title">
             <strong>Contributeurs</strong>
             <span>
-              {members.length} personne{members.length > 1 ? "s" : ""}
+              {team.length} personne{team.length > 1 ? "s" : ""}
             </span>
           </p>
           <div className="pj-contributors-list">
-            {members.map((m) => (
-              <UserChip key={m.user.id} user={m.user} owner={m.role === "OWNER"} />
+            {team.map((m) => (
+              <UserChip key={m.user.id} user={m.user} owner={m.isOwner} />
             ))}
           </div>
         </section> */}

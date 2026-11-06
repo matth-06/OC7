@@ -13,7 +13,7 @@
 
 .pj-container {
   margin: 0 auto;
-  max-width: 832px;
+  max-width: 1215px;
 }
 
 .pj-sr-only {
@@ -230,7 +230,7 @@
 .pj-team-members { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 
 /* ================= DÉTAIL D'UN PROJET ================= */
-.pj-container:has(.pj-detail-header) { max-width: 864px; }
+.pj-container:has(.pj-detail-header) { max-width: 1215px; }
 
 .pj-detail-header {
   display: flex;

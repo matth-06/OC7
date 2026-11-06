@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CalendarDays,
   CheckSquare,
@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Search,
 } from "lucide-react";
+import { useApi } from "../../hooks/use-api";
 import "./dashboard.css";
 
 type Task = {
@@ -42,19 +43,15 @@ const KANBAN_COLUMNS: { status: string; title: string }[] = [
   { status: "DONE", title: "Terminées" },
 ];
 
-type AssignedTaskResponse = {
-  data?: {
-    tasks?: {
-      id: string;
-      title: string;
-      description: string | null;
-      status: string;
-      dueDate: string | null;
-      project: { name: string };
-      comments: unknown[];
-    }[];
-  };
-  message?: string;
+/* Réponse de GET /api/dashboard/assigned-tasks → { data: { tasks: [...] } } */
+type ApiAssignedTask = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  dueDate: string | null;
+  project: { name: string };
+  comments: unknown[];
 };
 
 type View = "liste" | "kanban";
@@ -190,57 +187,23 @@ function KanbanColumn({ title, tasks }: { title: string; tasks: Task[] }) {
 export default function DashboardPage() {
   const [view, setView] = useState<View>("liste");
   const [query, setQuery] = useState("");
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data, loading, error } = useApi<{ tasks: ApiAssignedTask[] }>(
+    "/api/dashboard/assigned-tasks"
+  );
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadTasks() {
-      try {
-        const response = await fetch("/api/dashboard/assigned-tasks", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        const result = (await response.json()) as AssignedTaskResponse;
-
-        if (!response.ok) {
-          throw new Error(result.message ?? "Impossible de charger vos tâches.");
-        }
-        if (!Array.isArray(result.data?.tasks)) {
-          throw new Error("La réponse du serveur ne contient pas de liste de tâches.");
-        }
-
-        setTasks(
-          result.data.tasks.map((task) => ({
-            id: task.id,
-            name: task.title,
-            description: task.description ?? "Aucune description",
-            project: task.project.name,
-            date: formatDueDate(task.dueDate),
-            comments: task.comments.length,
-            status: task.status,
-          }))
-        );
-      } catch (loadError) {
-        if (!controller.signal.aborted) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Impossible de charger vos tâches."
-          );
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadTasks();
-    return () => controller.abort();
-  }, []);
+  const tasks = useMemo<Task[]>(
+    () =>
+      (data?.tasks ?? []).map((task) => ({
+        id: task.id,
+        name: task.title,
+        description: task.description ?? "Aucune description",
+        project: task.project.name,
+        date: formatDueDate(task.dueDate),
+        comments: task.comments.length,
+        status: task.status,
+      })),
+    [data]
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

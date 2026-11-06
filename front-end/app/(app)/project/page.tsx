@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import { Users } from "lucide-react";
-import { useApi } from "./use-api";
+import { useApi } from "../../hooks/use-api";
 import { Avatar } from "./ui";
-import { fullName, sortMembers, type ApiMember } from "./utils";
+import { buildTeam, fullName, type ApiMember, type ApiUser } from "./utils";
 import "./projects.css";
 
-/* ---- Format attendu de GET /api/projects → { data: { projects: [...] } } ---- */
+/* ---- Réponse de GET /api/projects → { data: { projects: [...] } } ---- */
 type ApiProject = {
   id: string;
   name: string;
   description: string | null;
-  members: ApiMember[];
+  owner: ApiUser;
+  members: ApiMember[]; // hors propriétaire
   tasks: { status: string }[];
 };
 
@@ -23,9 +24,9 @@ function ProjectCard({ project }: { project: ApiProject }) {
   const done = project.tasks.filter((t) => t.status === "DONE").length;
   const progress = total === 0 ? 0 : Math.round((done / total) * 100);
 
-  const members = sortMembers(project.members);
-  const owner = members.find((m) => m.role === "OWNER");
-  const others = members.filter((m) => m !== owner);
+  const team = buildTeam(project.owner, project.members);
+  const owner = team[0];
+  const others = team.slice(1);
   const visible = others.slice(0, MAX_VISIBLE_MEMBERS);
   const hidden = others.length - visible.length;
 
@@ -57,15 +58,13 @@ function ProjectCard({ project }: { project: ApiProject }) {
       <div className="pj-card-team">
         <p className="pj-team-label">
           <Users className="pj-team-icon" aria-hidden />
-          Équipe ({members.length})
+          Équipe ({team.length})
         </p>
         <div className="pj-team-members">
-          {owner && (
-            <span className="pj-chip">
-              <Avatar user={owner.user} owner />
-              <span className="pj-pill pj-pill-owner">Propriétaire</span>
-            </span>
-          )}
+          <span className="pj-chip">
+            <Avatar user={owner.user} owner />
+            <span className="pj-pill pj-pill-owner">Propriétaire</span>
+          </span>
           <span className="pj-avatar-stack">
             {visible.map((m) => (
               <Avatar key={m.user.id} user={m.user} />
