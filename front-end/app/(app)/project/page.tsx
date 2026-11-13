@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { Users } from "lucide-react";
+import { useState } from "react";
 import { useApi } from "../../hooks/use-api";
+import { CreateProjectModal } from "./CreateProjectModal";
 import { Avatar } from "./ui";
 import { buildTeam, fullName, type ApiMember, type ApiUser } from "./utils";
 import "./projects.css";
@@ -82,7 +84,8 @@ function ProjectCard({ project }: { project: ApiProject }) {
 }
 
 export default function ProjectsPage() {
-  const { data, loading, error } = useApi<{ projects: ApiProject[] }>("/api/projects");
+  const { data, loading, error, reload } = useApi<{ projects: ApiProject[] }>("/api/projects");
+  const [createOpen, setCreateOpen] = useState(false);
   const projects = data?.projects ?? [];
 
   return (
@@ -93,8 +96,7 @@ export default function ProjectsPage() {
             <h1 className="pj-title">Mes projets</h1>
             <p className="pj-subtitle">Gérez vos projets</p>
           </div>
-          {/* TODO : brancher sur votre formulaire / modale de création */}
-          <button type="button" className="pj-btn pj-btn-dark">
+          <button type="button" className="pj-btn pj-btn-dark" onClick={() => setCreateOpen(true)}>
             + Créer un projet
           </button>
         </header>
@@ -113,6 +115,10 @@ export default function ProjectsPage() {
           </div>
         )}
       </div>
+
+      {createOpen && (
+        <CreateProjectModal onClose={() => setCreateOpen(false)} onCreated={reload} />
+      )}
     </main>
   );
 }

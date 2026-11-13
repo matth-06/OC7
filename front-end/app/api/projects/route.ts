@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { badRequest, callBackend, readJson } from "../_lib/backend";
 
 export async function GET() {
   const token = (await cookies()).get("auth_token")?.value;
@@ -39,4 +40,11 @@ export async function GET() {
       { status: 502 }
     );
   }
+}
+
+/** Création d'un projet. ⚠️ Supposé : POST `${BACKEND_URL}/projects` { name, description, contributors: emails[] } */
+export async function POST(request: Request) {
+  const body = await readJson(request);
+  if (body === undefined) return badRequest();
+  return callBackend("POST", "/projects", body);
 }

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { badRequest, callBackend, readJson } from "../../_lib/backend";
 
 export async function GET(
   _request: Request,
@@ -47,4 +48,15 @@ export async function GET(
       { status: 502 }
     );
   }
+}
+
+/** Modification d'un projet. ⚠️ Supposé : PUT `${BACKEND_URL}/projects/:id` { name, description } */
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const body = await readJson(request);
+  if (body === undefined) return badRequest();
+  const { id } = await params;
+  return callBackend("PUT", `/projects/${encodeURIComponent(id)}`, body);
 }

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useApi } from "../../../hooks/use-api";
 import { CreateTaskModal } from "./CreateTaskModal";
+import { EditProjectModal } from "../EditProjectModal";
 import { EditTaskModal } from "./EditTaskModal";
 import { Avatar, StatusBadge, UserChip } from "../ui";
 import {
@@ -205,6 +206,7 @@ function ProjectDetailContent() {
   const [status, setStatus] = useState("ALL");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ApiTask | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
@@ -281,8 +283,13 @@ function ProjectDetailContent() {
           <div className="pj-detail-heading">
             <h1 className="pj-title">
               {project.name}
-              {/* TODO : brancher sur votre formulaire de modification */}
-              <button type="button" className="pj-link-button">Modifier</button>
+              <button
+                type="button"
+                className="pj-link-button"
+                onClick={() => setEditProjectOpen(true)}
+              >
+                Modifier
+              </button>
             </h1>
             <p className="pj-subtitle">{project.description ?? "Aucune description"}</p>
           </div>
@@ -400,6 +407,14 @@ function ProjectDetailContent() {
           )}
         </section>
       </div>
+
+      {editProjectOpen && (
+        <EditProjectModal
+          project={project}
+          onClose={() => setEditProjectOpen(false)}
+          onSaved={reload}
+        />
+      )}
 
       {createOpen && (
         <CreateTaskModal

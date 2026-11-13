@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   CheckSquare,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import { useApi } from "../../hooks/use-api";
 import { useCurrentUser } from "../CurrentUserProvider";
+import { CreateProjectModal } from "../project/CreateProjectModal";
 import "./dashboard.css";
 
 type Task = {
@@ -187,6 +189,8 @@ function KanbanColumn({ title, tasks }: { title: string; tasks: Task[] }) {
 
 export default function DashboardPage() {
   const { user } = useCurrentUser();
+  const router = useRouter();
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [view, setView] = useState<View>("liste");
   const [query, setQuery] = useState("");
   const { data, loading, error } = useApi<{ tasks: ApiAssignedTask[] }>(
@@ -230,7 +234,11 @@ export default function DashboardPage() {
               Bonjour{user ? ` ${user.name}` : ""}, voici un aperçu de vos projets et tâches
             </p>
           </div>
-          <button type="button" className="dashboard-create-button">
+          <button
+            type="button"
+            className="dashboard-create-button"
+            onClick={() => setCreateProjectOpen(true)}
+          >
             + Créer un projet
           </button>
         </header>
@@ -318,6 +326,13 @@ export default function DashboardPage() {
           </section>
         )}
       </div>
+
+      {createProjectOpen && (
+        <CreateProjectModal
+          onClose={() => setCreateProjectOpen(false)}
+          onCreated={() => router.push("/project")}
+        />
+      )}
     </main>
   );
 }
