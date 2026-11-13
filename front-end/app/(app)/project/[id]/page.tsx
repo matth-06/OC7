@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useApi } from "../../../hooks/use-api";
+import { CreateTaskModal } from "./CreateTaskModal";
 import { Avatar, StatusBadge, UserChip } from "../ui";
 import {
   fullName,
@@ -169,7 +170,7 @@ function TaskItem({ task }: { task: ApiTask }) {
 
 function ProjectDetailContent() {
   const { id } = useParams<{ id: string }>();
-  const { data, loading, error } = useApi<{ project: ApiProjectDetail }>(
+  const { data, loading, error, reload } = useApi<{ project: ApiProjectDetail }>(
     `/api/projects/${encodeURIComponent(id)}`
   );
   const project = data?.project;
@@ -177,6 +178,7 @@ function ProjectDetailContent() {
   const [view, setView] = useState<View>("liste");
   const [status, setStatus] = useState("ALL");
   const [query, setQuery] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const tasks = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -231,7 +233,13 @@ function ProjectDetailContent() {
           </div>
 
           <div className="pj-detail-actions">
-            <button type="button" className="pj-btn pj-btn-dark">Créer une tâche</button>
+            <button
+              type="button"
+              className="pj-btn pj-btn-dark"
+              onClick={() => setCreateOpen(true)}
+            >
+              Créer une tâche
+            </button>
             <button type="button" className="pj-btn pj-btn-accent">
               <Sparkles size={14} aria-hidden />
               IA
@@ -239,6 +247,7 @@ function ProjectDetailContent() {
           </div>
         </header>
 
+        {/* Contributeurs */}
         <section className="pj-contributors" aria-label="Contributeurs">
           <p className="pj-contributors-title">
             <strong>Contributeurs</strong>
@@ -324,6 +333,15 @@ function ProjectDetailContent() {
           )}
         </section>
       </div>
+
+      {createOpen && (
+        <CreateTaskModal
+          projectId={project.id}
+          members={team}
+          onClose={() => setCreateOpen(false)}
+          onCreated={reload}
+        />
+      )}
     </main>
   );
 }

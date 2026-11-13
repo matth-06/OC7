@@ -1,21 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type ApiResponse<T> = { data?: T; message?: string };
 
 /**
  * Récupère `data` depuis une route de l'API back-end.
  * Format attendu : { data: ... } en succès, { message: "..." } en erreur.
+ *
+ * `reload()` relance la requête sans repasser `loading` à true :
+ * la page reste affichée pendant que les données se rafraîchissent.
  */
 export function useApi<T>(url: string) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [version, setVersion] = useState(0);
+  const loadedUrl = useRef<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
+    // L'écran de chargement n'apparaît que pour une nouvelle URL, pas pour un reload()
+    if (loadedUrl.current !== url) setLoading(true);
     setError("");
 
     async function load() {
@@ -30,6 +36,7 @@ export function useApi<T>(url: string) {
           throw new Error("La réponse du serveur est invalide.");
         }
         setData(result.data);
+        loadedUrl.current = url;
       } catch (e) {
         if (!controller.signal.aborted) {
           setError(e instanceof Error ? e.message : "Impossible de charger les données.");
@@ -41,7 +48,9 @@ export function useApi<T>(url: string) {
 
     void load();
     return () => controller.abort();
-  }, [url]);
+  }, [url, version]);
 
-  return { data, loading, error };
+  const reload = useCallback(() => setVersion((v) => v + 1), []);
+
+  return { data, loading, error, reload };
 }
