@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useApi } from "../../../hooks/use-api";
 import { CreateTaskModal } from "./CreateTaskModal";
+import { EditTaskModal } from "./EditTaskModal";
 import { Avatar, StatusBadge, UserChip } from "../ui";
 import {
   fullName,
@@ -49,7 +50,15 @@ type ApiProjectDetail = {
 
 type View = "liste" | "calendrier";
 
-function TaskMenu({ taskTitle }: { taskTitle: string }) {
+function TaskMenu({
+  taskTitle,
+  onEdit,
+  onDelete,
+}: {
+  taskTitle: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -83,15 +92,24 @@ function TaskMenu({ taskTitle }: { taskTitle: string }) {
       </button>
       {open && (
         <div className="pj-menu-list" role="menu">
-          {/* TODO : brancher sur vos routes de modification / suppression */}
-          <button type="button" role="menuitem" onClick={() => setOpen(false)}>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
+          >
             Modifier
           </button>
           <button
             type="button"
             role="menuitem"
             className="pj-menu-danger"
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
           >
             Supprimer
           </button>
@@ -101,7 +119,15 @@ function TaskMenu({ taskTitle }: { taskTitle: string }) {
   );
 }
 
-function TaskItem({ task }: { task: ApiTask }) {
+function TaskItem({
+  task,
+  onEdit,
+  onDelete,
+}: {
+  task: ApiTask;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const panelId = `comments-${task.id}`;
 
@@ -130,7 +156,7 @@ function TaskItem({ task }: { task: ApiTask }) {
             )}
           </div>
         </div>
-        <TaskMenu taskTitle={task.title} />
+        <TaskMenu taskTitle={task.title} onEdit={onEdit} onDelete={onDelete} />
       </div>
 
       <button
@@ -179,6 +205,9 @@ function ProjectDetailContent() {
   const [status, setStatus] = useState("ALL");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<ApiTask | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const tasks = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -213,6 +242,32 @@ function ProjectDetailContent() {
   }
 
   const team = buildTeam(project.owner, project.members);
+
+  const projectId = project.id;
+
+  async function handleDelete(task: ApiTask) {
+    if (deletingId) return; // évite les doubles clics
+    setActionError("");
+    setDeletingId(task.id);
+
+    try {
+      const response = await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}`,
+        { method: "DELETE" }
+      );
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => ({}))) as { message?: string };
+        setActionError(result.message ?? "La suppression a échoué. Veuillez réessayer.");
+        return;
+      }
+      reload();
+    } catch {
+      setActionError("Impossible de contacter le serveur.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <main className="pj-page">
@@ -318,8 +373,20 @@ function ProjectDetailContent() {
 
           {view === "liste" ? (
             <div className="pj-task-list">
+              {actionError && (
+                <p className="pj-state pj-state-error" role="alert">
+                  {actionError}
+                </p>
+              )}
               {tasks.length > 0 ? (
-                tasks.map((task) => <TaskItem key={task.id} task={task} />)
+                tasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    onEdit={() => setEditingTask(task)}
+                    onDelete={() => handleDelete(task)}
+                  />
+                ))
               ) : (
                 <p className="pj-state">
                   {project.tasks.length === 0
@@ -340,6 +407,17 @@ function ProjectDetailContent() {
           members={team}
           onClose={() => setCreateOpen(false)}
           onCreated={reload}
+        />
+      )}
+
+      {editingTask && (
+        <EditTaskModal
+          key={editingTask.id}
+          projectId={project.id}
+          task={editingTask}
+          members={team}
+          onClose={() => setEditingTask(null)}
+          onSaved={reload}
         />
       )}
     </main>
