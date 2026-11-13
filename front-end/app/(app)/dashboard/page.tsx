@@ -10,6 +10,7 @@ import {
   Search,
 } from "lucide-react";
 import { useApi } from "../../hooks/use-api";
+import { useCurrentUser } from "../CurrentUserProvider";
 import "./dashboard.css";
 
 type Task = {
@@ -185,6 +186,7 @@ function KanbanColumn({ title, tasks }: { title: string; tasks: Task[] }) {
 }
 
 export default function DashboardPage() {
+  const { user } = useCurrentUser();
   const [view, setView] = useState<View>("liste");
   const [query, setQuery] = useState("");
   const { data, loading, error } = useApi<{ tasks: ApiAssignedTask[] }>(
@@ -225,7 +227,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="dashboard-title">Tableau de bord</h1>
             <p className="dashboard-greeting">
-              Bonjour Alice Dupont, voici un aperçu de vos projets et tâches
+              Bonjour{user ? ` ${user.name}` : ""}, voici un aperçu de vos projets et tâches
             </p>
           </div>
           <button type="button" className="dashboard-create-button">

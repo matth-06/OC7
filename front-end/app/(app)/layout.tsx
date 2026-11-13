@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AppNavigation } from "./AppNavigation";
+import { CurrentUserProvider } from "./CurrentUserProvider";
+import { HeaderAvatar } from "./HeaderAvatar";
 import "./layoutApp.css";
 
 export default function AppLayout({
@@ -11,6 +13,7 @@ export default function AppLayout({
   children: ReactNode;
 }) {
   return (
+    <CurrentUserProvider>
     <div className="app-layout">
       {/* Header */}
       <header className="app-header">
@@ -26,9 +29,7 @@ export default function AppLayout({
 
         <AppNavigation />
 
-        <Link href="/profile" className="header-avatar">
-          AD
-        </Link>
+        <HeaderAvatar />
       </header>
 
       {/* Contenu des pages */}
@@ -48,5 +49,6 @@ export default function AppLayout({
         <p className="footer-copyright">Abricot 2025</p>
       </footer>
     </div>
+    </CurrentUserProvider>
   );
 }

@@ -2,11 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useApi } from "../../hooks/use-api";
+import { useCurrentUser, type CurrentUser } from "../CurrentUserProvider";
 import "./profile.css";
-
-/* ---- Réponse de GET /api/profile → { data: { user: { id, email, name } } } ---- */
-type ApiUser = { id: string; email: string; name: string };
 
 type Feedback = { type: "success" | "error"; text: string } | null;
 
@@ -16,8 +13,9 @@ function splitName(name: string) {
   return { firstName, lastName: rest.join(" ") };
 }
 
-function ProfileForm({ user }: { user: ApiUser }) {
+function ProfileForm({ user }: { user: CurrentUser }) {
   const router = useRouter();
+  const { updateUser } = useCurrentUser();
   const initial = splitName(user.name);
 
   const [displayName, setDisplayName] = useState(user.name);
@@ -61,6 +59,7 @@ function ProfileForm({ user }: { user: ApiUser }) {
       }
 
       setDisplayName(name);
+      updateUser({ name, email: email.trim() });
       setPassword("");
       setFeedback({ type: "success", text: "Vos informations ont été mises à jour." });
       router.refresh();
@@ -145,6 +144,7 @@ function ProfileForm({ user }: { user: ApiUser }) {
             onChange={(e) => setPassword(e.target.value)}
           />
           <p id="profile-password-hint" className="profile-hint">
+            Laissez vide pour conserver votre mot de passe actuel.
           </p>
         </div>
 
@@ -183,19 +183,19 @@ function ProfileForm({ user }: { user: ApiUser }) {
 }
 
 export default function ProfilePage() {
-  const { data, loading, error } = useApi<{ user: ApiUser }>("/api/profile");
+  const { user, loading, error } = useCurrentUser();
 
   return (
     <div className="profile-page">
       <div className="profile-container">
         {loading ? (
           <p className="profile-state" role="status">Chargement de votre compte...</p>
-        ) : error || !data?.user ? (
+        ) : error || !user ? (
           <p className="profile-state profile-state-error" role="alert">
             {error || "Impossible de charger votre compte."}
           </p>
         ) : (
-          <ProfileForm user={data.user} />
+          <ProfileForm user={user} />
         )}
       </div>
     </div>
