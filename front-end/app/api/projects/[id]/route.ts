@@ -60,3 +60,12 @@ export async function PUT(
   const { id } = await params;
   return callBackend("PUT", `/projects/${encodeURIComponent(id)}`, body);
 }
+
+/** Suppression d'un projet. ⚠️ Supposé : DELETE `${BACKEND_URL}/projects/:id` */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  return callBackend("DELETE", `/projects/${encodeURIComponent(id)}`);
+}

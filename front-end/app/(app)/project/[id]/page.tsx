@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -13,8 +13,10 @@ import {
   MoreHorizontal,
   Search,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { useApi } from "../../../hooks/use-api";
+import { AiTaskModal } from "./AiTaskModal";
 import { CreateTaskModal } from "./CreateTaskModal";
 import { EditProjectModal } from "../EditProjectModal";
 import { EditTaskModal } from "./EditTaskModal";
@@ -206,10 +208,15 @@ function ProjectDetailContent() {
   const [status, setStatus] = useState("ALL");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ApiTask | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
+  const [confirmingProjectDelete, setConfirmingProjectDelete] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
+  const [projectError, setProjectError] = useState("");
+  const router = useRouter();
 
   const tasks = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -246,6 +253,33 @@ function ProjectDetailContent() {
   const team = buildTeam(project.owner, project.members);
 
   const projectId = project.id;
+
+  async function handleDeleteProject() {
+    if (deletingProject) return;
+    setProjectError("");
+    setDeletingProject(true);
+
+    try {
+      const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => ({}))) as { message?: string };
+        setProjectError(result.message ?? "La suppression du projet a échoué. Veuillez réessayer.");
+        setConfirmingProjectDelete(false);
+        return;
+      }
+
+      router.replace("/project");
+      router.refresh();
+    } catch {
+      setProjectError("Impossible de contacter le serveur.");
+      setConfirmingProjectDelete(false);
+    } finally {
+      setDeletingProject(false);
+    }
+  }
 
   async function handleDelete(task: ApiTask) {
     if (deletingId) return; // évite les doubles clics
@@ -302,7 +336,7 @@ function ProjectDetailContent() {
             >
               Créer une tâche
             </button>
-            <button type="button" className="pj-btn pj-btn-accent">
+            <button type="button" className="pj-btn pj-btn-accent" onClick={() => setAiOpen(true)}>
               <Sparkles size={14} aria-hidden />
               IA
             </button>
@@ -406,6 +440,54 @@ function ProjectDetailContent() {
             <p className="pj-state">La vue Calendrier sera bientôt disponible.</p>
           )}
         </section>
+
+        {/* Suppression du projet */}
+        <section className="pj-danger" aria-label="Suppression du projet">
+          {confirmingProjectDelete ? (
+            <div className="pj-danger-confirm" role="group" aria-label="Confirmer la suppression">
+              <p className="pj-danger-text">
+                Supprimer « {project.name} » et toutes ses tâches ? Cette action est irréversible.
+              </p>
+              <div className="pj-danger-actions">
+                <button
+                  type="button"
+                  className="pj-danger-btn pj-danger-btn-solid"
+                  onClick={handleDeleteProject}
+                  disabled={deletingProject}
+                >
+                  {deletingProject ? "Suppression..." : "Oui, supprimer le projet"}
+                </button>
+                <button
+                  type="button"
+                  className="pj-danger-btn pj-danger-btn-cancel"
+                  onClick={() => setConfirmingProjectDelete(false)}
+                  disabled={deletingProject}
+                  autoFocus
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="pj-danger-btn"
+              onClick={() => {
+                setProjectError("");
+                setConfirmingProjectDelete(true);
+              }}
+            >
+              <Trash2 size={14} aria-hidden />
+              Supprimer le projet
+            </button>
+          )}
+
+          {projectError && (
+            <p className="pj-danger-error" role="alert">
+              {projectError}
+            </p>
+          )}
+        </section>
       </div>
 
       {editProjectOpen && (
@@ -413,6 +495,14 @@ function ProjectDetailContent() {
           project={project}
           onClose={() => setEditProjectOpen(false)}
           onSaved={reload}
+        />
+      )}
+
+      {aiOpen && (
+        <AiTaskModal
+          projectId={project.id}
+          onClose={() => setAiOpen(false)}
+          onCreated={reload}
         />
       )}
 
