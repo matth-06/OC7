@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useApi } from "../../../hooks/use-api";
+import { useCurrentUser } from "../../CurrentUserProvider";
 import { AiTaskModal } from "./AiTaskModal";
 import { CreateTaskModal } from "./CreateTaskModal";
 import { EditProjectModal } from "../EditProjectModal";
@@ -25,6 +26,8 @@ import {
   fullName,
   formatDate,
   buildTeam,
+  getPermissions,
+  getProjectRole,
   STATUS_LABELS,
   type ApiMember,
   type ApiUser,
@@ -49,6 +52,7 @@ type ApiProjectDetail = {
   owner: ApiUser;
   members: ApiMember[]; // hors propriétaire
   tasks: ApiTask[];
+  userRole?: string; // rôle de l'utilisateur connecté, si le back-end le renvoie
 };
 
 type View = "liste" | "calendrier";
@@ -59,8 +63,8 @@ function TaskMenu({
   onDelete,
 }: {
   taskTitle: string;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void; // absent = pas le droit de modifier
+  onDelete?: () => void; // absent = pas le droit de supprimer
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -95,41 +99,125 @@ function TaskMenu({
       </button>
       {open && (
         <div className="pj-menu-list" role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onEdit();
-            }}
-          >
-            Modifier
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="pj-menu-danger"
-            onClick={() => {
-              setOpen(false);
-              onDelete();
-            }}
-          >
-            Supprimer
-          </button>
+          {onEdit && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onEdit();
+              }}
+            >
+              Modifier
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              role="menuitem"
+              className="pj-menu-danger"
+              onClick={() => {
+                setOpen(false);
+                onDelete();
+              }}
+            >
+              Supprimer
+            </button>
+          )}
         </div>
       )}
     </div>
   );
 }
 
+function CommentForm({
+  projectId,
+  taskId,
+  author,
+  onAdded,
+}: {
+  projectId: string;
+  taskId: string;
+  author: ApiUser;
+  onAdded: () => void;
+}) {
+  const [content, setContent] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const text = content.trim();
+    if (!text || sending) return;
+
+    setError("");
+    setSending(true);
+
+    try {
+      const response = await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/comments`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: text }),
+        }
+      );
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => ({}))) as { message?: string };
+        setError(result.message ?? "Le commentaire n’a pas pu être ajouté. Veuillez réessayer.");
+        return;
+      }
+
+      setContent("");
+      onAdded();
+    } catch {
+      setError("Impossible de contacter le serveur.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <form className="pj-comment-form" onSubmit={handleSubmit}>
+      <Avatar user={author} />
+      <input
+        type="text"
+        value={content}
+        maxLength={1000}
+        placeholder="Ajouter un commentaire..."
+        aria-label="Ajouter un commentaire"
+        disabled={sending}
+        onChange={(e) => setContent(e.target.value)}
+      />
+      <button type="submit" className="pj-comment-send" disabled={sending || !content.trim()}>
+        {sending ? "Envoi..." : "Envoyer"}
+      </button>
+      {error && (
+        <p className="pj-comment-error" role="alert">
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
+
 function TaskItem({
   task,
+  projectId,
+  currentUser,
+  canComment,
   onEdit,
   onDelete,
+  onCommentAdded,
 }: {
   task: ApiTask;
-  onEdit: () => void;
-  onDelete: () => void;
+  projectId: string;
+  currentUser: ApiUser;
+  canComment: boolean;
+  onEdit?: () => void; // absent = pas le droit de modifier
+  onDelete?: () => void; // absent = pas le droit de supprimer
+  onCommentAdded: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const panelId = `comments-${task.id}`;
@@ -159,7 +247,9 @@ function TaskItem({
             )}
           </div>
         </div>
-        <TaskMenu taskTitle={task.title} onEdit={onEdit} onDelete={onDelete} />
+        {(onEdit || onDelete) && (
+          <TaskMenu taskTitle={task.title} onEdit={onEdit} onDelete={onDelete} />
+        )}
       </div>
 
       <button
@@ -174,24 +264,35 @@ function TaskItem({
       </button>
 
       {open && (
-        <ul id={panelId} className="pj-comments">
-          {task.comments.length === 0 ? (
-            <li className="pj-comments-empty">Aucun commentaire.</li>
-          ) : (
-            task.comments.map((c) => (
-              <li key={c.id} className="pj-comment">
-                <Avatar user={c.author} />
-                <div>
-                  <p className="pj-comment-head">
-                    <strong>{fullName(c.author)}</strong>
-                    <span>{formatDate(c.createdAt, "")}</span>
-                  </p>
-                  <p className="pj-comment-text">{c.content}</p>
-                </div>
-              </li>
-            ))
+        <div id={panelId} className="pj-comments-panel">
+          <ul className="pj-comments">
+            {task.comments.length === 0 ? (
+              <li className="pj-comments-empty">Aucun commentaire.</li>
+            ) : (
+              task.comments.map((c) => (
+                <li key={c.id} className="pj-comment">
+                  <Avatar user={c.author} />
+                  <div>
+                    <p className="pj-comment-head">
+                      <strong>{fullName(c.author)}</strong>
+                      <span>{formatDate(c.createdAt, "")}</span>
+                    </p>
+                    <p className="pj-comment-text">{c.content}</p>
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
+
+          {canComment && (
+            <CommentForm
+              projectId={projectId}
+              taskId={task.id}
+              author={currentUser}
+              onAdded={onCommentAdded}
+            />
           )}
-        </ul>
+        </div>
       )}
     </article>
   );
@@ -217,6 +318,7 @@ function ProjectDetailContent() {
   const [deletingProject, setDeletingProject] = useState(false);
   const [projectError, setProjectError] = useState("");
   const router = useRouter();
+  const { user, loading: userLoading } = useCurrentUser();
 
   const tasks = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -227,7 +329,7 @@ function ProjectDetailContent() {
     });
   }, [project, status, query]);
 
-  if (loading) {
+  if (loading || userLoading) {
     return (
       <main className="pj-page">
         <p className="pj-state" role="status">Chargement du projet...</p>
@@ -244,6 +346,41 @@ function ProjectDetailContent() {
           </Link>
           <p className="pj-state pj-state-error" role="alert">
             {error || "Projet introuvable."}
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="pj-page">
+        <div className="pj-container">
+          <Link href="/project" className="pj-icon-button" aria-label="Retour aux projets">
+            <ArrowLeft size={16} aria-hidden />
+          </Link>
+          <p className="pj-state pj-state-error" role="alert">
+            Impossible de vérifier votre compte. Veuillez vous reconnecter.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // Rôle de l'utilisateur dans ce projet : ni admin ni contributeur = pas d'accès
+  const role = getProjectRole(project, user.id);
+  const can = getPermissions(role);
+
+  if (!role) {
+    return (
+      <main className="pj-page">
+        <div className="pj-container">
+          <Link href="/project" className="pj-icon-button" aria-label="Retour aux projets">
+            <ArrowLeft size={16} aria-hidden />
+          </Link>
+          <p className="pj-state pj-state-error" role="alert">
+            Vous n’avez pas accès à ce projet. Seuls ses administrateurs et ses contributeurs
+            peuvent le consulter.
           </p>
         </div>
       </main>
@@ -317,30 +454,38 @@ function ProjectDetailContent() {
           <div className="pj-detail-heading">
             <h1 className="pj-title">
               {project.name}
-              <button
-                type="button"
-                className="pj-link-button"
-                onClick={() => setEditProjectOpen(true)}
-              >
-                Modifier
-              </button>
+              {can.editProject && (
+                <button
+                  type="button"
+                  className="pj-link-button"
+                  onClick={() => setEditProjectOpen(true)}
+                >
+                  Modifier
+                </button>
+              )}
             </h1>
             <p className="pj-subtitle">{project.description ?? "Aucune description"}</p>
           </div>
 
-          <div className="pj-detail-actions">
-            <button
-              type="button"
-              className="pj-btn pj-btn-dark"
-              onClick={() => setCreateOpen(true)}
-            >
-              Créer une tâche
-            </button>
-            <button type="button" className="pj-btn pj-btn-accent" onClick={() => setAiOpen(true)}>
-              <Sparkles size={14} aria-hidden />
-              IA
-            </button>
-          </div>
+          {can.createTask && (
+            <div className="pj-detail-actions">
+              <button
+                type="button"
+                className="pj-btn pj-btn-dark"
+                onClick={() => setCreateOpen(true)}
+              >
+                Créer une tâche
+              </button>
+              <button
+                type="button"
+                className="pj-btn pj-btn-accent"
+                onClick={() => setAiOpen(true)}
+              >
+                <Sparkles size={14} aria-hidden />
+                IA
+              </button>
+            </div>
+          )}
         </header>
 
         {/* Contributeurs */}
@@ -424,8 +569,12 @@ function ProjectDetailContent() {
                   <TaskItem
                     key={task.id}
                     task={task}
-                    onEdit={() => setEditingTask(task)}
-                    onDelete={() => handleDelete(task)}
+                    projectId={project.id}
+                    currentUser={user}
+                    canComment={can.comment}
+                    onEdit={can.editTask ? () => setEditingTask(task) : undefined}
+                    onDelete={can.deleteTask ? () => handleDelete(task) : undefined}
+                    onCommentAdded={reload}
                   />
                 ))
               ) : (
@@ -441,56 +590,58 @@ function ProjectDetailContent() {
           )}
         </section>
 
-        {/* Suppression du projet */}
-        <section className="pj-danger" aria-label="Suppression du projet">
-          {confirmingProjectDelete ? (
-            <div className="pj-danger-confirm" role="group" aria-label="Confirmer la suppression">
-              <p className="pj-danger-text">
-                Supprimer « {project.name} » et toutes ses tâches ? Cette action est irréversible.
-              </p>
-              <div className="pj-danger-actions">
-                <button
-                  type="button"
-                  className="pj-danger-btn pj-danger-btn-solid"
-                  onClick={handleDeleteProject}
-                  disabled={deletingProject}
-                >
-                  {deletingProject ? "Suppression..." : "Oui, supprimer le projet"}
-                </button>
-                <button
-                  type="button"
-                  className="pj-danger-btn pj-danger-btn-cancel"
-                  onClick={() => setConfirmingProjectDelete(false)}
-                  disabled={deletingProject}
-                  autoFocus
-                >
-                  Annuler
-                </button>
+        {/* Suppression du projet (administrateurs uniquement) */}
+        {can.deleteProject && (
+          <section className="pj-danger" aria-label="Suppression du projet">
+            {confirmingProjectDelete ? (
+              <div className="pj-danger-confirm" role="group" aria-label="Confirmer la suppression">
+                <p className="pj-danger-text">
+                  Supprimer « {project.name} » et toutes ses tâches ? Cette action est irréversible.
+                </p>
+                <div className="pj-danger-actions">
+                  <button
+                    type="button"
+                    className="pj-danger-btn pj-danger-btn-solid"
+                    onClick={handleDeleteProject}
+                    disabled={deletingProject}
+                  >
+                    {deletingProject ? "Suppression..." : "Oui, supprimer le projet"}
+                  </button>
+                  <button
+                    type="button"
+                    className="pj-danger-btn pj-danger-btn-cancel"
+                    onClick={() => setConfirmingProjectDelete(false)}
+                    disabled={deletingProject}
+                    autoFocus
+                  >
+                    Annuler
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="pj-danger-btn"
-              onClick={() => {
-                setProjectError("");
-                setConfirmingProjectDelete(true);
-              }}
-            >
-              <Trash2 size={14} aria-hidden />
-              Supprimer le projet
-            </button>
-          )}
+            ) : (
+              <button
+                type="button"
+                className="pj-danger-btn"
+                onClick={() => {
+                  setProjectError("");
+                  setConfirmingProjectDelete(true);
+                }}
+              >
+                <Trash2 size={14} aria-hidden />
+                Supprimer le projet
+              </button>
+            )}
 
-          {projectError && (
-            <p className="pj-danger-error" role="alert">
-              {projectError}
-            </p>
-          )}
-        </section>
+            {projectError && (
+              <p className="pj-danger-error" role="alert">
+                {projectError}
+              </p>
+            )}
+          </section>
+        )}
       </div>
 
-      {editProjectOpen && (
+      {can.editProject && editProjectOpen && (
         <EditProjectModal
           project={project}
           onClose={() => setEditProjectOpen(false)}
@@ -498,7 +649,7 @@ function ProjectDetailContent() {
         />
       )}
 
-      {aiOpen && (
+      {can.createTask && aiOpen && (
         <AiTaskModal
           projectId={project.id}
           onClose={() => setAiOpen(false)}
@@ -506,7 +657,7 @@ function ProjectDetailContent() {
         />
       )}
 
-      {createOpen && (
+      {can.createTask && createOpen && (
         <CreateTaskModal
           projectId={project.id}
           members={team}
@@ -515,7 +666,7 @@ function ProjectDetailContent() {
         />
       )}
 
-      {editingTask && (
+      {can.editTask && editingTask && (
         <EditTaskModal
           key={editingTask.id}
           projectId={project.id}

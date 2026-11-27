@@ -6,13 +6,14 @@ import { NextResponse } from "next/server";
  *
  * ⚠️ Variables d'environnement (.env.local) :
  *   GEMINI_API_KEY=AIza...          (obligatoire, ne jamais exposer côté client)
- *   GEMINI_MODEL=gemini-3.5-flash   (optionnel)
+ *   GEMINI_MODEL=gemini-3.5-flash-lite (optionnel)
  *
  * Réponse : { data: { tasks: [{ title, description }, … 3 éléments] } }
  */
 
-const MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash";
+const MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
 const MAX_PROMPT_LENGTH = 1000;
+const GEMINI_TIMEOUT_MS = 60_000;
 
 const SYSTEM_PROMPT = `Tu es un assistant de gestion de projet intégré à une application de suivi de tâches.
 L'utilisateur décrit des tâches à ajouter à un projet.
@@ -160,10 +161,10 @@ export async function POST(
           ],
           generationConfig: {
             responseMimeType: "application/json",
-            maxOutputTokens: 4096,
+            maxOutputTokens: 512,
           },
         }),
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
       }
     );
 
@@ -204,6 +205,14 @@ export async function POST(
 
     return NextResponse.json({ success: true, data: { tasks } });
   } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      console.error(`Délai dépassé lors de l'appel à Gemini (${GEMINI_TIMEOUT_MS} ms).`);
+      return NextResponse.json(
+        { message: "La génération prend trop de temps. Veuillez réessayer." },
+        { status: 504 }
+      );
+    }
+
     console.error("Impossible de contacter l'API Gemini:", error);
     return NextResponse.json(
       { message: "L'IA ne répond pas pour le moment. Veuillez réessayer." },
